@@ -12,6 +12,10 @@ This pipeline processes user events (page views, clicks, purchases, logins, etc.
 3. **Storage**: Stores raw events and hourly aggregations in PostgreSQL
 4. **Monitoring**: Exposes Prometheus metrics and provides Grafana dashboards for observability
 
+
+Please check real_time_pipeline_vector.drawio
+
+
 ### Key Features
 
 - **Real-time Processing**: Kafka-based event streaming with batch processing
