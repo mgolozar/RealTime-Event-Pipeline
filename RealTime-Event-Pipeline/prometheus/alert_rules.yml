@@ -1,0 +1,214 @@
+groups:
+  - name: pipeline_alerts
+    interval: 30s
+    rules:
+      
+
+     
+      - alert: ProducerRunning
+        expr: |
+          count(events_produced_total) > 0
+        for: 10s
+        labels:
+          severity: info
+          component: producer
+        annotations:
+          summary: "Producer is running and generating events"
+          description: "Producer metrics are available"
+
+       
+      - alert: ConsumerRunning
+        expr: |
+          count(events_consumed_total) > 0
+        for: 10s
+        labels:
+          severity: info
+          component: consumer
+        annotations:
+          summary: "Consumer is running and processing events"
+          description: "Consumer metrics are available"
+
+ 
+      - alert: LowEventRate
+        expr: |
+          rate(events_produced_total[1m]) < 1000
+        for: 30s
+        labels:
+          severity: warning
+          component: producer
+        annotations:
+          summary: "Event production rate is low"
+          description: "Producing {{ $value }} events/sec (threshold: 1000)"
+
+ 
+       
+      - alert: KafkaProducerErrors
+        expr: |
+          rate(kafka_produce_errors_total[1m]) > 0
+        for: 30s
+        labels:
+          severity: critical
+          component: producer
+        annotations:
+          summary: "Kafka producer errors detected"
+          description: "Producer error rate is {{ $value }} errors/sec"
+
+ 
+      - alert: KafkaConsumerErrors
+        expr: |
+          rate(kafka_consume_errors_total[1m]) > 0
+        for: 30s
+        labels:
+          severity: critical
+          component: consumer
+        annotations:
+          summary: "Kafka consumer errors detected"
+          description: "Consumer error rate is {{ $value }} errors/sec"
+
+ 
+      - alert: ProcessingFailuresDetected
+        expr: |
+          rate(events_failed_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "Processing failures detected"
+          description: "Events are failing during processing at rate {{ $value }} failures/sec"
+
+      - alert: PipelineStoppedProcessing
+        expr: |
+          rate(events_consumed_total[5m]) < 0.01
+        for: 5m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "Pipeline stopped processing events"
+          description: "No events consumed in the last 5 minutes. Pipeline may be down or stuck."
+
+      - alert: DatabaseConnectionFailure
+        expr: |
+          (rate(db_inserts_total{table="hourly_aggregations"}[5m]) < 0.01) and (rate(events_processed_total[5m]) > 0.1)
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection failure"
+          description: "No database inserts detected while events are being processed. Database may be unreachable."
+
+      - alert: ProcessingLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(event_processing_duration_seconds_bucket[5m])) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+          component: pipeline
+        annotations:
+          summary: "High event processing latency"
+          description: "P95 processing latency is {{ $value }}s (threshold: 1.0s). Pipeline may be overloaded."
+
+      - alert: TransformationFailures
+        expr: |
+          rate(events_failed_total{error_type="transformation"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: transformer
+        annotations:
+          summary: "Event transformation failures"
+          description: "Events are failing transformation at rate {{ $value }} failures/sec. Check data format."
+
+      - alert: AggregationFailures
+        expr: |
+          rate(events_failed_total{error_type="aggregation"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: aggregator
+        annotations:
+          summary: "Event aggregation failures"
+          description: "Events are failing aggregation at rate {{ $value }} failures/sec. Check aggregation logic."
+
+       
+      - alert: AlertsFired
+        expr: |
+          rate(alerts_fired_total[1m]) > 0
+        for: 10s
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Alerts being fired by AlertManager"
+          description: "Alert rate: {{ $value }} alerts/sec"
+
+      
+      - alert: PipelineActive
+        expr: |
+          count(events_processed_total) > 0
+        for: 10s
+        labels:
+          severity: info
+          component: pipeline
+        annotations:
+          summary: "Pipeline is actively processing events"
+          description: "Pipeline metrics are available"
+
+ 
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(events_failed_total[5m])) / sum(rate(events_processed_total[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "Error rate exceeds 1%"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%). More than 1% of events are failing."
+
+      - alert: ConsumerLagGrowing
+        expr: |
+          increase(kafka_consumer_lag[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: consumer
+        annotations:
+          summary: "Consumer lag is growing"
+          description: "Consumer lag increased by {{ $value }} messages in the last 10 minutes. Consumer may be falling behind."
+
+      - alert: ZeroThroughput
+        expr: |
+          sum(rate(events_processed_total[10m])) < 0.01
+        for: 10m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "Zero throughput detected"
+          description: "No events processed in the last 10 minutes. Pipeline may be stopped or stuck."
+
+      - alert: HighDatabaseLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(db_insert_duration_seconds_bucket[5m])) by (le)) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High database P95 latency"
+          description: "P95 database write latency is {{ $value }}s (threshold: 200ms). Database may be under heavy load."
+
+      - alert: PipelineStaleness
+        expr: |
+          (time() - last_event_processed_unixtime) > 300
+        for: 5m
+        labels:
+          severity: critical
+          component: pipeline
+        annotations:
+          summary: "Pipeline staleness detected"
+          description: "No events processed in the last {{ $value }} seconds (threshold: 300s). Pipeline may be stopped."
+

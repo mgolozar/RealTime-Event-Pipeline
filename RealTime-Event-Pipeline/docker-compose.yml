@@ -1,0 +1,237 @@
+version: "3.9"
+
+services:
+  # ===== Zookeeper Ensemble =====
+  zookeeper1:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper1
+    hostname: zookeeper1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_SERVERS: "zookeeper1:2888:3888;zookeeper2:2888:3888;zookeeper3:2888:3888"
+    ports: ["2181:2181"]
+    volumes:
+      - ./data/zoo-1/data:/var/lib/zookeeper/data
+      - ./data/zoo-1/log:/var/lib/zookeeper/log
+    networks: [stack]
+
+  zookeeper2:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper2
+    hostname: zookeeper2
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SERVER_ID: 2
+      ZOOKEEPER_SERVERS: "zookeeper1:2888:3888;zookeeper2:2888:3888;zookeeper3:2888:3888"
+    ports: ["2182:2181"]
+    volumes:
+      - ./data/zoo-2/data:/var/lib/zookeeper/data
+      - ./data/zoo-2/log:/var/lib/zookeeper/log
+    networks: [stack]
+
+  zookeeper3:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper3
+    hostname: zookeeper3
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_SERVERS: "zookeeper1:2888:3888;zookeeper2:2888:3888;zookeeper3:2888:3888"
+    ports: ["2183:2181"]
+    volumes:
+      - ./data/zoo-3/data:/var/lib/zookeeper/data
+      - ./data/zoo-3/log:/var/lib/zookeeper/log
+    networks: [stack]
+
+  # ===== Kafka Brokers (3 nodes) =====
+  kafka1:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka1
+    hostname: kafka1
+    depends_on: [zookeeper1, zookeeper2, zookeeper3]
+    ports: ["9091:9091"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper1:2181,zookeeper2:2181,zookeeper3:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:29092,OUTSIDE://:9091
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:29092,OUTSIDE://localhost:9091
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_LOG_DIRS: /var/lib/kafka/logs
+    networks: [stack]
+
+  kafka2:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka2
+    hostname: kafka2
+    depends_on: [zookeeper1, zookeeper2, zookeeper3]
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper1:2181,zookeeper2:2181,zookeeper3:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:29092,OUTSIDE://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka2:29092,OUTSIDE://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_LOG_DIRS: /var/lib/kafka/logs
+    networks: [stack]
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka3
+    hostname: kafka3
+    depends_on: [zookeeper1, zookeeper2, zookeeper3]
+    ports: ["9093:9093"]
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper1:2181,zookeeper2:2181,zookeeper3:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:29092,OUTSIDE://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka3:29092,OUTSIDE://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_LOG_DIRS: /var/lib/kafka/logs
+    networks: [stack]
+
+  # ===== Kafka UI =====
+  kafka-ui1:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui1
+    depends_on: [kafka1, kafka2, kafka3]
+    ports: ["8080:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:29092,kafka2:29092,kafka3:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper1:2181,zookeeper2:2181,zookeeper3:2181
+    networks: [stack]
+
+  # ===== Producers (3x) =====
+  producer1:
+    image: zeal-pipeline:latest
+    container_name: producer1
+    command: ["producer"]
+    environment:
+      METRICS_PORT: "8001"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092"
+    ports: ["8001:8001"]
+    depends_on: [kafka1, kafka2, kafka3]
+    networks: [stack]
+
+  producer2:
+    image: zeal-pipeline:latest
+    container_name: producer2
+    command: ["producer"]
+    environment:
+      METRICS_PORT: "8004"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092"
+    ports: ["8004:8004"]
+    depends_on: [kafka1, kafka2, kafka3]
+    networks: [stack]
+
+  producer3:
+    image: zeal-pipeline:latest
+    container_name: producer3
+    command: ["producer"]
+    environment:
+      METRICS_PORT: "8005"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092"
+    ports: ["8005:8005"]
+    depends_on: [kafka1, kafka2, kafka3]
+    networks: [stack]
+
+  # ===== Consumers (2x) =====
+  consumer1:
+    image: zeal-pipeline:latest
+    container_name: consumer1
+    command: ["consumer"]
+    environment:
+      METRICS_PORT: "8002"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_USER: "pipeline_user"
+      DB_PASSWORD: "pipeline_password"
+      DB_NAME: "data_pipeline"
+    ports: ["8002:8002"]
+    depends_on: [kafka1, kafka2, kafka3, postgres]
+    networks: [stack]
+
+  consumer2:
+    image: zeal-pipeline:latest
+    container_name: consumer2
+    command: ["consumer"]
+    environment:
+      METRICS_PORT: "8003"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_USER: "pipeline_user"
+      DB_PASSWORD: "pipeline_password"
+      DB_NAME: "data_pipeline"
+    ports: ["8003:8003"]
+    depends_on: [kafka1, kafka2, kafka3, postgres]
+    networks: [stack]
+
+  # ===== PostgreSQL =====
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: data_pipeline
+      POSTGRES_USER: pipeline_user
+      POSTGRES_PASSWORD: pipeline_password
+    ports: ["5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [stack]
+
+  # ===== Prometheus =====
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks: [stack]
+
+  # ===== Grafana =====
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on: [prometheus]
+    networks: [stack]
+
+networks:
+  stack:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:

@@ -134,6 +134,95 @@ Here's how the system works in simple terms:
    - Prometheus: http://localhost:9090
    - Kafka UI: http://localhost:8080
 
+## Docker Deployment
+
+You can also run the producer and consumer as Docker containers instead of running them directly on your machine.
+
+### Building the Docker Image
+
+```bash
+# Build the Docker image
+docker build -t zeal-network-pipeline:latest .
+
+# Or with a specific tag
+docker build -t zeal-network-pipeline:v1.0.0 .
+```
+
+### Running with Docker
+
+**Run Producer:**
+```bash
+docker run -d \
+  --name pipeline-producer \
+  --network host \
+  -v $(pwd)/.env:/app/.env:ro \
+  -p 8001:8001 \
+  zeal-network-pipeline:latest producer
+```
+
+**Run Consumer:**
+```bash
+docker run -d \
+  --name pipeline-consumer \
+  --network host \
+  -v $(pwd)/.env:/app/.env:ro \
+  -p 8002:8002 \
+  zeal-network-pipeline:latest consumer
+```
+
+```
+
+**Note:** The `--network host` flag allows the containers to access services running on localhost (Kafka, PostgreSQL, etc.). For production, use Docker networks instead.
+
+### Docker Compose Integration
+
+You can also add the producer and consumer to your `docker-compose.yml`:
+
+```yaml
+services:
+  # ... existing services ...
+  
+  producer:
+    build: .
+    container_name: pipeline-producer
+    command: producer
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka1:29092,kafka2:29092,kafka3:29092
+      - KAFKA_TOPIC=user-events
+      - METRICS_PORT_PRODUCER=8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    networks:
+      - kafka-net
+
+  consumer:
+    build: .
+    container_name: pipeline-consumer
+    command: consumer
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka1:29092,kafka2:29092,kafka3:29092
+      - KAFKA_TOPIC=user-events
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=data_pipeline
+      - DB_USER=pipeline_user
+      - DB_PASSWORD=pipeline_password
+      - METRICS_PORT_CONSUMER=8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+      - postgres
+    networks:
+      - kafka-net
+```
+
 ## Detailed Setup Instructions
 
 ### Step 1: Environment Configuration
@@ -583,7 +672,9 @@ python check_db_data.py
 ```
 
  
-
+###Note:
+If you want to run this project with multiple producers and consumers,
+please refer to the README inside the RealTime-Event-Pipeline folder.
  
 
  

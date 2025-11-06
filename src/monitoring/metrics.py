@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
 logger = logging.getLogger(__name__)
@@ -53,9 +54,11 @@ class PipelineMetrics:
             'event_size_bytes', 'Event size in bytes',
             buckets=[100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000]
         )
-        
+        if metrics_port is None:
+            metrics_port = int(os.getenv("METRICS_PORT", "8000"))
         try:
-            start_http_server(metrics_port)
+            
+            start_http_server(metrics_port, addr="0.0.0.0")
             logger.info(f"Metrics server on port {metrics_port}")
         except Exception as e:
             logger.warning(f"Metrics server failed: {e}")
