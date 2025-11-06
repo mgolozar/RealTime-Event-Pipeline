@@ -13,7 +13,7 @@ This pipeline processes user events (page views, clicks, purchases, logins, etc.
 4. **Monitoring**: Exposes Prometheus metrics and provides Grafana dashboards for observability
 
 
-Please check real_time_pipeline_vector.drawio
+Please check [real_time_pipeline_vector.drawio](https://github.com/mgolozar/RealTime-Event-Pipeline/blob/main/real_time_pipeline_vector.drawio)
 
 
 ### Key Features
